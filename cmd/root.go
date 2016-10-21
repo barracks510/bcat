@@ -63,18 +63,21 @@ Misc options:
 		if len(args) == 0 || args[0] == "-" {
 			buffer, _ = ioutil.ReadAll(os.Stdin)
 		}
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write(buffer)
-		})
 		browserCommand := viper.GetString("BCAT_COMMAND")
 		b, err := bcatlib.NewBrowser(options.Browser, browserCommand)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
-		if err := b.Open("http://127.0.0.1:8080"); err != nil {
+		s, err := bcatlib.NewServer(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(buffer)
+		})
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
-		fmt.Fprintf(os.Stderr, "error: %s\n", http.ListenAndServe(":8080", nil))
+		if err := b.Open(s.Url()); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		}
+		fmt.Fprintf(os.Stderr, "error: %s\n", s.Serve())
 	},
 }
 
