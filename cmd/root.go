@@ -15,8 +15,8 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -56,10 +56,17 @@ Misc options:
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		var buffer []byte
-		if len(args) == 0 || args[0] == "-" {
-			buffer, _ = ioutil.ReadAll(os.Stdin)
+		rc, err := bcatlib.NewReaderCollection(args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
+		ch := rc.MakeFilterableChan()
+		if options.Ansi {
+			options.Html = true
+			ch = bcatlib.TextFilter(ch)
+		}
+		buffer := bytes.Buffer{}
+
 		browserCommand := viper.GetString("BCAT_COMMAND")
 		b, err := bcatlib.NewBrowser(options.Browser, browserCommand)
 		if err != nil {
@@ -71,7 +78,7 @@ Misc options:
 			} else {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			}
-			w.Write(buffer)
+			w.Write(buffer.Bytes())
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
@@ -79,6 +86,15 @@ Misc options:
 		if err := b.Open(s.Url()); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
+
+		go func() {
+			for output := range ch {
+				if _, err := buffer.Write(output); err != nil {
+					fmt.Fprintf(os.Stderr, "error: %s\n", err)
+				}
+			}
+		}()
+
 		fmt.Fprintf(os.Stderr, "error: %s\n", s.Serve())
 	},
 }
