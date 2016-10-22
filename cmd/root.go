@@ -37,8 +37,6 @@ var RootCmd = &cobra.Command{
 	Use:   "bcat",
 	Short: "pipe to browser utility",
 	Long: `Usage: bcat [-htp] [-a] [-b <browser>] [-T <title>] [<file>]...
-       bcat [-htp] [-a] [-b <browser>] [-T <title>] -c command...
-       btee <options> [<file>]...
 Pipe to browser utility. Read standard input, possibly one or more <file>s,
 and write concatenated / formatted output to browser. When invoked as btee,
 also write all input back to standard output.
@@ -53,7 +51,6 @@ Input format (auto detected by default):
   --text                 input is unencoded text
 
 Misc options:
-  -c, --command              read the standard output of command
   -p, --persist              serve until interrupted, allowing reload
   -d, --debug                enable verbose debug logging on stderr`,
 	// Uncomment the following line if your bare application
@@ -69,6 +66,11 @@ Misc options:
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
 		s, err := bcatlib.NewServer(func(w http.ResponseWriter, r *http.Request) {
+			if options.Html {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			} else {
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			}
 			w.Write(buffer)
 		})
 		if err != nil {
@@ -106,7 +108,6 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&options.Title, "title", "T", "", "")
 	RootCmd.PersistentFlags().BoolVarP(&options.Ansi, "ansi", "a", false, "")
 	RootCmd.PersistentFlags().BoolVarP(&options.Persist, "persist", "p", false, "")
-	RootCmd.PersistentFlags().BoolVarP(&options.Command, "command", "c", false, "")
 	RootCmd.PersistentFlags().BoolVarP(&options.Debug, "debug", "d", false, "")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
