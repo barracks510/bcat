@@ -78,7 +78,20 @@ Misc options:
 			} else {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			}
-			w.Write(buffer.Bytes())
+
+			if options.Title == "" {
+				w.Write(buffer.Bytes())
+				// Place title tag at the bottom, in case the
+				// buffer contains it's own.
+				title := fmt.Sprintf("<title>bcat</title>")
+				w.Write([]byte(title))
+			} else {
+				// Place title tag at the top, to override any
+				// that are in buffer.
+				title := fmt.Sprintf("<title>%s</title>", options.Title)
+				w.Write([]byte(title))
+				w.Write(buffer.Bytes())
+			}
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
