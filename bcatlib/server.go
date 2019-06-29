@@ -15,6 +15,7 @@
 package bcatlib
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/http"
@@ -52,4 +53,33 @@ func (s *Server) Serve() error {
 // Returns the URL that the server is listening on.
 func (s *Server) Url() string {
 	return s.url
+}
+
+// ServerEndpoint is a channel sink and returns the URL of the server as well
+// as a completion channel.
+func ServerEndpoint(source <-chan []byte) (<-chan bool, string) {
+	ch := make(chan bool)
+
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		c, err := l.Accept()
+		if err != nil {
+			panic(err)
+		}
+		c.Write([]byte("HTTP/1.1 200 OK\n"))
+		c.Write([]byte("Content-Type: text/plain;charset=utf-8\n"))
+		c.Write(bytes.Repeat([]byte("\n"), 1000))
+		for content := range source {
+			c.Write(content)
+		}
+		c.Close()
+		l.Close()
+		ch <- true
+		close(ch)
+	}()
+	return ch, fmt.Sprintf("http://%s", l.Addr().String())
 }

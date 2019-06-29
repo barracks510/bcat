@@ -15,9 +15,7 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -65,37 +63,18 @@ Misc options:
 			options.Html = true
 			ch = bcatlib.TextFilter(ch)
 		}
-		buffer := bytes.Buffer{}
+		done, url := bcatlib.ServerEndpoint(ch)
 
 		browserCommand := viper.GetString("BCAT_COMMAND")
 		b, err := bcatlib.NewBrowser(options.Browser, browserCommand)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
-		s, err := bcatlib.NewServer(func(w http.ResponseWriter, r *http.Request) {
-			if options.Html {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			} else {
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			}
-			w.Write(buffer.Bytes())
-		})
-		if err != nil {
+		if err := b.Open(url); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
-		if err := b.Open(s.Url()); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s\n", err)
-		}
-
-		go func() {
-			for output := range ch {
-				if _, err := buffer.Write(output); err != nil {
-					fmt.Fprintf(os.Stderr, "error: %s\n", err)
-				}
-			}
-		}()
-
-		fmt.Fprintf(os.Stderr, "error: %s\n", s.Serve())
+		fmt.Println(url)
+		<-done
 	},
 }
 
